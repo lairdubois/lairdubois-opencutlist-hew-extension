@@ -1,6 +1,6 @@
 # OpenCutList concepts → Hew's data model
 
-*Draft 0.2, 31 October 2026. Written from the Python port's side by @TinyWorkshopDesign, to be corrected by @bbeaulant (OpenCutList side) and reviewed by @granroth (Hew side). 0.2 folds in granroth's answers on hew3d/hew#60 and the milestone 1 API.*
+*Draft 0.3, 2 November 2026. Written from the Python port's side by @TinyWorkshopDesign, to be corrected by @bbeaulant (OpenCutList side) and reviewed by @granroth (Hew side). 0.2 folded in granroth's answers on hew3d/hew#60 and the milestone 1 API. 0.3 folds in Boris's review of 0.2: the reference is now OpenCutList 8.0, four corrections on the upstream side, and a new proposal for what a part is (§1).*
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Each section has three parts:
 
 ## Sources
 
-- **OpenCutList 7.1.0 source**: `cutlist_generate_worker.rb` (model walk, material resolution), `definition_attributes.rb`, `material_attributes.rb`.
+- **OpenCutList 8.0 source**, branch `8.0.0` (65fbb4c, 30 October): `cutlist_generate_worker.rb` (model walk, material resolution, edges and veneer), `definition_attributes.rb`, `material_attributes.rb`, `instance_attributes.rb`. Where 7.1.0 differs, the text says so. Boris asked to stop using 7.1.0 as the reference: a year of 8.0 development already changes several of its rules.
 - **Hew**, on the `feature/plugin-system` branch (milestone 1, pre-release `v1.4.0-pre.plugin-m1`):
   - `docs/agents/PLUGINS.md`, especially "Reading parts", "Materials" and "Attributes";
   - `docs/API_REFERENCE.gen.md`, generated from the registry the app dispatches through;
@@ -26,58 +26,70 @@ Each section has three parts:
 
 | OpenCutList / SketchUp | Hew | Bus (milestone) | Status |
 |---|---|---|---|
-| Part = component definition whose instances contain faces | instance of a definition, or a loose Object | `hew.query.occurrences` (M1) | **open: §1** |
-| Instance count of a part | occurrence rows that share a definition | `occurrences` (M1) | §2 |
+| Part = component whose definition contains faces forming a volume (parts can contain parts) | **a body**: one Object that is a closed solid, wherever it sits | `hew.query.occurrences` (M1), `hew.doc.health` | **proposal: §1** |
+| Hardware: an instance, or a named group, painted with a hardware material is one item (8.0) | same rule on instances and named groups | `material` on each row (M1) | §1 |
+| Machining entities (`TYPE_MACHINING`) left out of the walk (8.0) | same rule, or a native Hew concept | — | **open: §1** |
+| Instance count of a part | occurrence rows that share a definition; a fingerprint for bodies without one | `occurrences`, `measure` (M1) | §2 |
 | Group = transparent container | Group: no pose, never shared; transforms bake into leaves | `occurrences` | §1, §3 |
 | Nested components | instances inside definitions | `occurrences` (M1) | §3 |
 | Flipped instance (det < 0): separate part unless `symmetrical` | mirrored instance pose | `mirrored` on each row (M1) | §4 |
 | Scaled instance | instance pose with non-uniform scale | `part_frame` extents, `world_pose` (M1) | §5 |
 | Size from definition bounds + auto-orient / locked axes | definition axes; frame override on objects and groups | `part_frame`, `component.rebase`, `entity.set_frame` (M1) | §6 |
-| Material: instance → dominant child → inherited | face → object base → nearest painted instance | `material`, `material_effective` on each row (M1) | §7, question for Boris |
+| Material: instance → dominant child (by votes) → inherited | face → object base → nearest painted instance | `material`, `material_effective` on each row (M1) | §7: upstream order |
 | Edge banding / veneer: typed material on part faces | face material with an "edge"/"veneer" type in our namespace | `hew.query.faces {path}` + `part_frame` (M1) | §8 |
 | Visibility: entity hidden + layer hidden, inherited | hidden flag + tags along the path | `hidden`, `include_hidden` (M1) | §9 |
 | Scope: selection or whole model; `active_path` in header | `roots` = selection or context members; context `stack` | `occurrences {roots}`, `hew.query.context` (M1) | §10 |
 | `ladb_opencutlist` attribute dictionary | attribute dictionaries, namespace `org.opencutlist` | `hew.attr.*` | §11 |
 | Entity ids, part uuid, part numbers | `sid` (persisted since `.hew` v14), `document_id` | ids on every row (M1) | §12 |
+| Arcs and circles as polylines | analytic circles, arcs and cylinders; fillets planned in core | `faces` `surface`, `hew.compute.outline` (M2) | §13 |
 
 ---
 
 ## 1. What is a part
 
-**OpenCutList.** A part is a **component definition**. The walk descends through groups and instances. A component instance becomes a part if its definition, including any groups nested inside it, contains faces, and its face bounds aren't empty or flat. Groups are never parts: their faces count toward the enclosing instance, and loose faces outside any component aren't listed. `cuts_opening` components are treated like groups, and `always_face_camera` components are skipped.
+**OpenCutList.** The walk descends through groups and instances. A component instance is a part when its definition, including the groups nested in it, contains faces forming a volume. That is not limited to leaf components: a component with faces of its own *and* nested components is a part, and so are the nested ones, which gives parts inside parts (joinery inside a panel). Groups are never parts: their faces count toward the enclosing instance, and loose faces outside any component aren't listed ("make components" tip). 8.0 adds two exceptions (`_fetch_useful_instance_infos`):
 
-**Hew.** Geometry lives only in **Objects**, which are discrete watertight solids. Groups and definitions hold Objects but have no faces of their own (ARCHITECTURE §2.1, §2.7). A definition's members can be objects, groups and instances. Groups are never shared: two identical groups are two separate nodes.
+- an instance, or a **named** group, painted with a `TYPE_HARDWARE` material is one item, even without faces, and the walk doesn't descend into it (hardware made of sub-components);
+- an entity painted with a `TYPE_MACHINING` material is left out of the walk and out of face collection.
 
-**granroth's view** (#60, 31 Oct): a part is the **deepest node whose members are all objects**:
+**Why it doesn't carry over** (Boris, review of 0.2). Upstream is built on SketchUp's logic: every level of the tree is an instance of a definition, with local axes, a transformation and a material, and loose faces are just geometry. In Hew, geometry lives only in Objects, and an Object is a watertight solid with its own base material. An Object is much closer to a *solid group* in SketchUp than to loose faces, so "Objects are parts" is really "groups are parts", which upstream deliberately refuses. But every extrusion in Hew is an Object, so refusing them would give most users an empty list, and making every board a component feels much less natural in Hew than in SketchUp, since an Object is already a thing in itself.
 
-- an instance whose definition holds only objects;
-- a group holding only objects;
-- a loose object at any level.
+**Proposal: a part is a body.** This is the rule mechanical CAD uses (a SolidWorks weldment cut list lists *bodies*, not folders or assemblies), and it matches Hew's own model:
 
-A container with groups or instances inside is an assembly, and the walk descends. A container holding several solids (a hinge, a drawer front glued up from two boards) is one part with one `part_frame`, which is also what `measure` and `snapshot` assume when given a group or an instance. `kinds` on `occurrences` picks which row types come back.
+1. **A part is one body: one Object that is a closed solid** (`health: solid`), wherever it sits: loose, in a group, or inside a component definition, where it counts once per placement.
+2. **Groups and components organise, they don't make parts.** Groups are transparent, as upstream. A component is how you say "these are the same" (§2) and how you give a part its own axes (§6), but you don't need one to get a part.
+3. **Hardware, as in 8.0**: an instance or a named group painted with a hardware material is one item and isn't descended. A hinge made of twelve bodies is one hinge.
+4. **Machining, as in 8.0**: bodies painted with a machining material are left out. Whether Hew should carry this natively is an open question (below).
+5. **Open objects are not parts.** Anything that isn't a closed solid is reported, with Hew's own health verdict, instead of being measured. Hew already says which ones can be closed automatically (`cappable`, `hew.solid.cap`).
 
-**Where that differs from upstream.** The two rules agree on the main case: a component whose definition holds geometry only is one part, however many solids it has. They differ in three places:
+What falls out of it:
 
-| Case | Upstream | granroth's rule |
-|---|---|---|
-| Group holding only objects | never a part: transparent | one part |
-| Component whose definition holds groups of objects | one part (the groups count toward it) | assembly: each group is a part |
-| Objects outside any component | not listed | each one a part |
+- **Parts inside parts** need no special case: a dowel, a loose tenon or a spline is its own body, so it's its own part.
+- **A glued-up blank** (a leg laminated from two boards) is two parts. That is what the workshop cuts. Upstream lists one part when both boards are in one component; a definition attribute could restore that where it's wanted (question 2 below).
+- **The empty list goes away** without asking anyone to make components, and components keep their value: identical placements are identical by construction.
 
-The first row matters most in Hew. Every extrusion is a separate Object, so users group boards all the time: a carcass group of five boards would be one part under granroth's rule and five under the upstream walk (if loose Objects are listed at all). Tested on M1: `part_frame` on a group of two separate 800 mm shelves returns one 1300 × 800 × 19 frame, the extent of the pair.
+**Checked on real models** (Hew 1.3.1, `hew.doc.health`, `.skp` files from the port's tests):
 
-**The Python port** treats every Object as a part, named after the nearest meaningful name: its own, else the component's, else the enclosing group's.
+| Model | Objects | Closed solids | Not closed |
+|---|---|---|---|
+| Desk-top shelf (piano Harvey) | 6 | 5 | 1: the SketchUp default figure |
+| Microwave cabinet, v1 / v3 | 27 / 35 | 24 / 34 | v1: a front leg (an open curved surface), a door (closable) and a hinge; v3: only the figure |
+| Table | 3 | 3 | 0 |
+| TV cabinet | 23 | 22 | 1: the figure |
+| Desk with props | 1188 | 242 | 946, of which 838 in a downloaded 12U rack, the rest a chair, a monitor |
+| Kitchen bin unit | 215 | 27 | 188, almost all downloaded Blum hinges |
+| Workbench (third-party model) | 567 | 74 | 493: Festool systainers, casters, vice, figure |
 
-**Proposal.**
-
-- **Components behave as upstream.** An instance whose definition holds geometry (objects, and groups of objects) is one part; an instance whose definition holds further instances is an assembly. "One board = one component" stays the recommended way to model, as upstream.
-- **Groups stay transparent**, as upstream. A glued-up part that should count as one is made a component, which is also what gives it a shared identity (§2).
-- **Loose Objects are parts** (a Hew extension): an Object outside any component, at the top level, in groups, or next to nested instances inside an assembly definition, is one part. It has no definition, so identical loose Objects are grouped by a fingerprint (§2). This differs from upstream in one more case: there, a definition's own geometry next to nested components is one part, the definition itself.
+The boards people draw are closed solids almost everywhere. The exceptions are worth noting: in v1 of the microwave cabinet a leg and a door were open, and v3 of the same model has none. Everything else that isn't closed is downloaded hardware and props, which isn't cut anyway, and rule 3 or a hardware material covers it. So the plugin should report open parts clearly, and offer `hew.solid.cap` where Hew says it applies, rather than drop them silently.
 
 **Questions for @bbeaulant.**
-1. Do you agree with listing loose Objects, or should we keep upstream's discipline (components only, with a tip when the model has none)?
-2. Groups: transparent as upstream, or granroth's "a group of objects is one part"?
-3. A definition holding several Objects is one part under both rules. That suits a laminated leg, but not a cabinet module whose boards were never made components. Is the upstream answer ("make the boards components") enough, or do we want an "assembly" flag on a definition?
+1. Is "a part is a closed body" a sound base for you, given the cases above?
+2. Glued-up blanks: two parts by default, with a definition attribute ("one part") for the cases where the list should show the blank? Or the other way round?
+3. Machining: in Hew a groove or a mortise is a boolean subtraction on the body itself, so the body stays one closed solid and the geometry is changed. Should OpenCutList keep 8.0's "machining entity next to the part" model, or should we ask Hew for a native, non-destructive form (a tool body attached to a part, subtracted for display and export)?
+
+**Questions for @granroth.**
+1. **Bodies split on import.** The `.skp` importer sometimes splits one shape into several Objects joined by shared rims (`hew.doc.health` `families`: 54 in the workbench, 40 in a rack model). Under this rule a board split in two becomes two parts. Could the importer join a family into one Object when the union is a closed solid, or could `occurrences` report the family so the plugin can treat it as one?
+2. **Left and right bodies.** Mirrored placements report `mirrored`, but two loose bodies that are mirror images of each other have no definition to compare. Could `part_frame` (or `measure`) return a handedness flag, or a canonical signature, so a fingerprint can tell a left part from a right one?
 
 ## 2. Counting and grouping
 
@@ -87,7 +99,11 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 
 **The Python port** groups by *name + material + size rounded to 0.1 mm*, because before `occurrences` it couldn't trust definitions: it had to explode everything.
 
-**Proposal.** Components: group by definition, then split on material, size and mirroring, as upstream. Loose Objects: group by a fingerprint (name, effective material, `part_frame` extents at OpenCutList's precision), which is the port's rule kept only where there's no definition.
+**Proposal.** With a part being a body (§1):
+
+- **Bodies inside a component definition**: the key is the definition plus the member Object, then split on material, size and mirroring, as upstream. Every placement of the definition adds one to the count.
+- **Bodies with no definition** (loose, or in groups): a fingerprint of effective material, `part_frame` extents at OpenCutList's precision, volume and surface area (`hew.query.measure`, M1), and handedness once Hew can report it (§1, question 2 for granroth). This is what mechanical CAD does to group identical bodies in a cut list, and it doesn't depend on names.
+- The part name comes from the body, else from the nearest named group or component on the path, as the port does today. It's a label, not part of the key.
 
 ## 3. Groups and nesting
 
@@ -107,7 +123,11 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 
 **What the port learned, now obsolete.** For mirrored instances the port measured the definition's Objects through the pose, and fell back to the bounding box when they contained further nesting. It also listed mirrored twins as the same part, which differs from upstream.
 
+**Correction (Boris).** Upstream's `InstanceInfo#flipped` and `#scale` come from the **cumulated transformation of the whole path** (`PathUtils.get_transformation`), not from the instance alone. A mirrored or scaled outer instance affects every part nested in it.
+
 **Proposal.** Same as upstream: `mirrored` goes into the part key unless `symmetrical` is set, and it swaps the min/max faces for edges and veneer (§8). Because `part_frame` negates `y` for a mirrored placement, the swap has to be checked against that convention, not re-derived from the determinant.
+
+**To verify on M1** (@granroth): that `mirrored` and `part_frame` on a nested occurrence use the full path, so a part inside a mirrored outer instance reports `mirrored: true` even when its own placement isn't mirrored. `world_pose` is composed along the path, so the test is a mirrored cabinet containing an unmirrored door.
 
 ## 5. Scaled instances
 
@@ -132,7 +152,7 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 **The Python port** computes the frame from face areas (most area = board face, next perpendicular = edge), close to `part_frame`'s `face` source.
 
 **Proposal.**
-- Default: `part_frame`. With `auto_orient`, reorder its extents longest first, as upstream.
+- Default: `part_frame`. With `auto_orient`, reorder its extents longest first, as upstream. Reordering permutes the frame's axes, which changes its handedness: §8 has to track that.
 - Locked orientation on a component: `hew.component.rebase`, plus `orientation_locked_on_axis: true` in our namespace, so `part_frame` and upstream's flag agree.
 - Locked orientation on a loose Object: `hew.entity.set_frame`, plus the same flag. To mark grain across the width, write `x: [0, 1, 0]`, `y: [1, 0, 0]`.
 - Smart Axes maps onto `rebase`, `set_frame` and `flip_instance`, all in M1.
@@ -141,7 +161,7 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 
 **OpenCutList** (`_get_material`, with `smart_material`):
 1. the material **painted on the instance** itself;
-2. otherwise the **dominant material of its children** (at the first level, or through `cuts_opening` components);
+2. otherwise the **dominant material of its children** (`_get_dominant_child_material`). It **counts votes**, not area: each face is one vote, and each child group, walked recursively, is a single vote (its own dominant material). Ties are broken by `MaterialAttributes.type_order`. The search descends through groups and `cuts_opening` components, not only the first level;
 3. otherwise the material **inherited** from the nearest ancestor in the path.
 
 "Virtual" materials are skipped at every step. Those are the **edge** and **veneer** types (`MaterialAttributes.is_virtual?`), so a part's material is never its edge band or veneer, however much area they cover.
@@ -155,11 +175,16 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 
 **The difference, now readable.** Upstream looks at the *instance* first, because in SketchUp painting an instance is how users set a part's material. Hew's effective material follows the *rendering* order (face first). Since an instance row carries its own `material` separately, the plugin can apply upstream's rule exactly; nothing on the Hew side blocks it.
 
-**The Python port** uses the material covering the largest face area of each Object (face material, else the Object default), close to upstream's "dominant child".
+**The Python port** uses the material covering the largest face area of each Object (face material, else the Object default). That differs from upstream: area, not votes.
 
-**Proposal.** Apply upstream's order on Hew's data: the instance row's own `material` (skipping virtual types), else the dominant material by face area across the part's Objects (from `faces {path}`, skipping virtual types), else the inherited material from the rows above on the path.
+**Decision (Boris).** Keep **upstream's instance-first order**: it is what OpenCutList users expect, and it was already a deliberate choice against SketchUp's own rendering order, which is the same as Hew's.
 
-**Question for @bbeaulant.** Keep upstream's instance-first order, or follow Hew's face-first `material_effective`? They differ only when the faces are painted one way and the instance another.
+**Proposal.** For a body (§1):
+1. the material of the nearest **instance** on its path, if painted and not virtual;
+2. otherwise its **dominant material by votes**: one vote per face (from `faces {path}`), virtual types skipped, ties broken by type order. For a loose Object, its base material stands in for unpainted faces;
+3. otherwise the material **inherited** from the rows above on the path.
+
+`material_effective` is `null` on a group row, so groups only matter through step 3.
 
 ## 8. Edge banding and veneer
 
@@ -167,7 +192,11 @@ The first row matters most in Hew. Every extrusion is a separate Object, so user
 
 **Hew.** `hew.query.faces` with an occurrence `path` gives each face's plane, normal and effective material. Material types live in our namespace on the material (§11). Faces and edges also carry attribute dictionaries (addressed by locator), which survive push/pull, copies and cuts across a face; face dictionaries survive booleans too, edge dictionaries don't.
 
-**Proposal.** Same algorithm as upstream, in the occurrence's `part_frame`: classify faces by normal against the frame axes, take min and max per axis, and swap them when the occurrence is mirrored (§4). Keep typed materials as the source of truth, as upstream. Face attributes are an option for data that isn't a material.
+**Corrections (Boris).**
+- The swap condition is `flipped ^ size.axes_flipped?`, not `flipped` alone: the axis permutation done by `auto_orient` also changes the frame's handedness.
+- Besides `edge_decremented`, the **veneer thickness is subtracted from the part thickness** (`veneers_def[:thickness_decrement]`).
+
+**Proposal.** Same algorithm as upstream, in the occurrence's `part_frame`: classify faces by normal against the frame axes, take min and max per axis, and swap them when `mirrored XOR axes_permuted`, where `axes_permuted` is set when the plugin's reordering of `part_frame` extents (§6) changes handedness, on top of the `y` negation for mirrored placements (§4). Subtract edge band and veneer thicknesses as upstream. Keep typed materials as the source of truth. Face attributes are an option for data that isn't a material.
 
 ## 9. Visibility
 
@@ -197,7 +226,11 @@ Upstream stores everything in the `ladb_opencutlist` dictionary, as strings with
 | `cumulable`, `instance_count_by_part`, `thickness_layer_count` | definition | definition / Object | |
 | `mass`, `url`, `tags`, `symmetrical`, `ignore_grain_direction` | definition | definition / Object | upstream reads `Price` from SketchUp's own dictionary |
 | `orientation_locked_on_axis` | definition | definition / Object | together with `rebase` / `set_frame` (§6) |
-| `type` (solid wood, sheet good, dimensional, edge, hardware, veneer) | material | material | |
+| `length_increase`, `width_increase`, `thickness_increase`, `follow_grain_direction` (8.0) | definition | definition / Object | numbers in mm, booleans |
+| `role`: `front_panel`, `back_panel`, `hinge` (8.0) | definition | definition / Object | used by Smart Build's cavity detection |
+| `is_grain_group` (8.0) | instance | instance or group | the nearest marked node on the path groups parts by grain |
+| `type` (solid wood, sheet good, dimensional, edge, hardware, veneer, **machining** in 8.0) | material | material | |
+| `description`, `url` | material | material | |
 | `thickness`, `length_increase`, `width_increase`, `thickness_increase` | material | material | numbers in mm |
 | `std_lengths`, `std_widths`, `std_thicknesses`, `std_sections`, `std_sizes` | material | material | arrays |
 | `grained`, `edge_decremented`, `raw_estimated`, `multiplier_coefficient` | material | material | |
@@ -207,7 +240,7 @@ Upstream stores everything in the `ladb_opencutlist` dictionary, as strings with
 
 **The Python port** keeps material settings in a file outside the model (`~/.config/hewcut/materials.json`), keyed by material name. That was only because it had no attribute writes. It goes away.
 
-**Question for @bbeaulant.** Is there anything stored on **instances** (not definitions) upstream that we need, beyond the instance material?
+**Answered (Boris).** On instances, 7.1.0 stores nothing beyond the material and the name. 8.0 adds `is_grain_group` (above), and the door opening attribute (`door_def.rb`), which isn't part of the cut list. Boris also mentions new material settings for machining (`machining_separated`, `machining_material_colored`), to be mapped once the machining question (§1) is settled.
 
 ## 12. Identity
 
@@ -217,6 +250,16 @@ Upstream stores everything in the `ladb_opencutlist` dictionary, as strings with
 
 **Proposal.** Keep our own `uuid` in `org.opencutlist` anyway. It survives copy and paste between documents and library inserts, which entity ids won't. Use Hew ids within a document, and `document_id` for anything kept outside it (caches, per-document plugin storage).
 
+**Caveat (Boris).** A `uuid` stored on a loose Object is copied along with it, so two copies edited apart keep the same `uuid` (upstream has the same issue after make-unique). With the fingerprint of §2 this doesn't merge different parts, since the key includes the geometry. For stable numbering, numbers are saved keyed by part key, and when two bodies with the same `uuid` end up with different fingerprints, the newer one gets a fresh `uuid`.
+
+## 13. Curves and fillets
+
+**OpenCutList.** SketchUp has no true curves: arcs and circles are polylines, so a round top is a polygon, cylinders are faceted, and exports and nesting see segments.
+
+**Hew.** Curves are analytic. Tested on 1.3.1: a 300 mm circle extruded 25 mm is one closed solid, and every side face reports its `surface` as a cylinder (axis and radius). The 48 segments are only the tessellation. granroth's `hew.compute.outline` (M2) returns outlines with analytic arcs, and fillets are planned as a core Hew feature.
+
+**Proposal.** Keep curves analytic all the way through: `part_frame` extents of a round part are its true size, `outline` feeds Packy's irregular mode (which accepts circular arcs) and DXF export (true arcs for CNC). Edge banding on a curved edge is measured on the real arc length.
+
 ---
 
 ## What the Python port got wrong by design
@@ -225,9 +268,9 @@ granroth flagged these, and M1 confirms them:
 
 1. **Mirrored instances aren't reachable.** True on Hew 1.3 through `hew-cli`. Since M1 they explode, open in place, and report `mirrored`.
 2. **"Walk = export a copy + explode everything".** A workaround for `query.scene` not listing nested instances. `occurrences` replaces it.
-3. **Material from face area only.** Hew exposes both the instance's own material and the inherited one (§7).
+3. **Material from face area.** Upstream counts votes, and Hew exposes both the instance's own material and the inherited one (§7).
 4. **Settings in a side file keyed by material name.** They belong in attributes (§11).
-5. **Grouping by name + size.** It should group by definition first (§2), keeping a fingerprint only for loose Objects.
+5. **Grouping by name + size.** It should group by definition first (§2), and use a geometric fingerprint, not names, for bodies without one.
 6. **Mirrored twins as one part.** Upstream lists them apart unless the part is `symmetrical` (§4).
 
 ## Answered by @granroth (#60, 31 October)
@@ -241,6 +284,13 @@ granroth flagged these, and M1 confirms them:
 ## Open questions
 
 For @bbeaulant:
-1. Parts: list loose Objects? Groups transparent, or "a group of objects is one part"? An "assembly" flag on definitions? (§1)
-2. Material: upstream's instance-first order, or Hew's face-first effective material? (§7)
-3. Instance-level attributes we'd need (§11).
+1. Is "a part is a closed body" a sound base? (§1)
+2. Glued-up blanks: two parts by default with a "one part" attribute, or the other way round? (§1)
+3. Machining: keep 8.0's separate machining entities, or ask Hew for a native, non-destructive form? (§1)
+
+For @granroth:
+1. Bodies split on import: join a seam family into one Object, or report families in `occurrences`? (§1)
+2. Handedness of loose bodies, so left and right parts can be told apart without a definition. (§1, §2)
+3. `mirrored` and `part_frame` on nested occurrences: full path or own placement? (§4)
+
+Answered in 0.3: material order (upstream's, §7), instance-level attributes (§11).
