@@ -1,0 +1,17 @@
+import { Hew, board } from "../../tests/acceptance/linked-copies/hew.ts";
+const hew = await Hew.start();
+const panel = await board(hew, "Panel", [0, 0, 0], [0.6, 0.4, 0.018]);
+const dowel = await board(hew, "Dowel", [0.1, 0.1, 0.018], [0.008, 0.008, 0.03]);
+const cmp = await hew.one("hew.component.create", { members: [panel, dowel] });
+await hew.one("hew.entity.rotate", { ids: [cmp.instance], pivot: [0, 0, 0], axis: [0, 0, 1], angle: 0.5 });
+const moved = await hew.one("hew.entity.move", { ids: [cmp.instance], translation: [2, 0, 0] });
+const rows = await hew.occurrences();
+for (const r of rows) console.log(r.kind, r.id, r.name, JSON.stringify(r.path), r.parent);
+const p = rows.find((r) => r.name === "Panel")!;
+console.log("PF inst", JSON.stringify(await hew.query("hew.query.part_frame", { path: [cmp.instance] })));
+console.log("PF obj", JSON.stringify(await hew.query("hew.query.part_frame", { path: [...p.path, p.id] })));
+const f = await hew.query("hew.query.faces", { path: [...p.path, p.id] });
+console.log("faces keys", Object.keys(f), "first", JSON.stringify(f.faces[0]).slice(0, 300));
+const h = await hew.query("hew.doc.health", {});
+console.log("health", JSON.stringify(h.counts));
+hew.close();
