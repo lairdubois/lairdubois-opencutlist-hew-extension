@@ -1,5 +1,11 @@
 # Acceptance test: linked copies (Hew milestone 2)
 
+> **Status: not yet run against linked copies. It must be run on the M2 build.**
+>
+> - On M1 the linked-copy cases (L1–L14) fail by design: M1 has no linked copies. Only the baseline (B1–B4) is a real result.
+> - The "13 pass" below comes from **simulated** links (`OCL_SIMULATE_LINKS=1`, copies made from explicit components). It checks the cases' own logic, not Hew's behaviour.
+> - Five M2 calls are guesses (`adapter.ts`) and have never run: those cases skip until their real shapes are known.
+
 What OpenCutList needs from Hew's linked copies, as executable cases. Agreed on hew3d/hew#60 and in [lairdubois-opencutlist-hew-extension#1](https://github.com/lairdubois/lairdubois-opencutlist-hew-extension/pull/1) (concept mapping 0.4, §2 and §14): copying an Object or a group links it by default, with component semantics, per-placement data, and an explicit Unlink.
 
 ## How a link is checked
@@ -68,7 +74,7 @@ These are the M2 calls whose shape we guessed. Each is one function:
 ## Results on M1 (`v1.4.0-pre.plugin-m1`, macOS, 6 November 2026)
 
 - **Real gestures**: B1–B4 pass; L1–L9 and L11–L14 fail with "copies not linked" (expected before M2); L10 skips.
-- **Simulated links** (`OCL_SIMULATE_LINKS=1`): 13 pass, 5 skip (the five TBD calls), 0 fail. So the cases' own logic is checked, and what remains for M2 is the real gesture plus the TBD calls.
+- **Simulated links** (`OCL_SIMULATE_LINKS=1`): 13 pass, 5 skip (the five TBD calls), 0 fail. This only checks the cases' own logic. **It is not a result on Hew's linked copies**: what remains for M2 is the real gesture plus the TBD calls, and the whole suite has to be run again on the M2 build.
 - **One finding for M2** (B2): on M1, `make_unique` keeps the definition's attributes, but the copied solid **loses its name** (`"Side"` → `null`). Unlink has to keep it (L9 checks this).
 
 ## Files
