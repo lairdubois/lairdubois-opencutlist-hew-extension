@@ -1,0 +1,707 @@
+{
+ "hew": "hew-cli 1.5.0-pre.plugin-m2",
+ "note": "Linked copies (M2 default): a board copied three times is one part ×4",
+ "exchanges": [
+  {
+   "method": "hew.query.occurrences",
+   "params": {
+    "include_hidden": false
+   },
+   "result": {
+    "epoch": 11,
+    "generation": 9,
+    "occurrences": [
+     {
+      "definition": "cmp_3",
+      "definition_name": "Shelf",
+      "depth": 0,
+      "hidden": false,
+      "id": "ins_4",
+      "kind": "instance",
+      "linked": true,
+      "material": "mat_0",
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": [
+        "obj_2"
+       ]
+      },
+      "mirrored": false,
+      "name": null,
+      "parent": null,
+      "path": [],
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0
+      ]
+     },
+     {
+      "definition": null,
+      "definition_name": null,
+      "depth": 1,
+      "family": null,
+      "family_closed": null,
+      "hidden": false,
+      "id": "obj_2",
+      "kind": "object",
+      "material": null,
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": []
+      },
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "path": [
+       "ins_4"
+      ],
+      "solid": true,
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0
+      ]
+     },
+     {
+      "definition": "cmp_3",
+      "definition_name": "Shelf",
+      "depth": 0,
+      "hidden": false,
+      "id": "ins_5",
+      "kind": "instance",
+      "linked": true,
+      "material": "mat_0",
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": [
+        "obj_2"
+       ]
+      },
+      "mirrored": false,
+      "name": null,
+      "parent": null,
+      "path": [],
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.3
+      ]
+     },
+     {
+      "definition": null,
+      "definition_name": null,
+      "depth": 1,
+      "family": null,
+      "family_closed": null,
+      "hidden": false,
+      "id": "obj_2",
+      "kind": "object",
+      "material": null,
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": []
+      },
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "path": [
+       "ins_5"
+      ],
+      "solid": true,
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.3
+      ]
+     },
+     {
+      "definition": "cmp_3",
+      "definition_name": "Shelf",
+      "depth": 0,
+      "hidden": false,
+      "id": "ins_6",
+      "kind": "instance",
+      "linked": true,
+      "material": "mat_0",
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": [
+        "obj_2"
+       ]
+      },
+      "mirrored": false,
+      "name": null,
+      "parent": null,
+      "path": [],
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.6
+      ]
+     },
+     {
+      "definition": null,
+      "definition_name": null,
+      "depth": 1,
+      "family": null,
+      "family_closed": null,
+      "hidden": false,
+      "id": "obj_2",
+      "kind": "object",
+      "material": null,
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": []
+      },
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "path": [
+       "ins_6"
+      ],
+      "solid": true,
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.6
+      ]
+     },
+     {
+      "definition": "cmp_3",
+      "definition_name": "Shelf",
+      "depth": 0,
+      "hidden": false,
+      "id": "ins_7",
+      "kind": "instance",
+      "linked": true,
+      "material": "mat_0",
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": [
+        "obj_2"
+       ]
+      },
+      "mirrored": false,
+      "name": null,
+      "parent": null,
+      "path": [],
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.8999999999999999
+      ]
+     },
+     {
+      "definition": null,
+      "definition_name": null,
+      "depth": 1,
+      "family": null,
+      "family_closed": null,
+      "hidden": false,
+      "id": "obj_2",
+      "kind": "object",
+      "material": null,
+      "material_effective": "mat_0",
+      "members": {
+       "groups": [],
+       "instances": [],
+       "objects": []
+      },
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "path": [
+       "ins_7"
+      ],
+      "solid": true,
+      "tags": [],
+      "user_hidden": false,
+      "world_pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.8999999999999999
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "method": "hew.query.scene",
+   "params": {},
+   "result": {
+    "components": [
+     {
+      "id": "cmp_3",
+      "instance_count": 4,
+      "name": "Shelf",
+      "usage": 4
+     }
+    ],
+    "document": {
+     "components": 1,
+     "groups": 0,
+     "guides": 0,
+     "instances": 4,
+     "materials": 1,
+     "objects": 0,
+     "sketches": 0
+    },
+    "epoch": 11,
+    "generation": 9,
+    "guides": [],
+    "materials": [
+     {
+      "color": {
+       "a": 255,
+       "b": 90,
+       "g": 140,
+       "r": 180
+      },
+      "has_texture": false,
+      "id": "mat_0",
+      "name": "Oak",
+      "texture": null,
+      "usage": 4
+     }
+    ],
+    "sketches": [],
+    "tags": [],
+    "tree": [
+     {
+      "bbox": {
+       "max": [
+        0.8,
+        0.25,
+        0.02
+       ],
+       "min": [
+        0,
+        0,
+        0
+       ]
+      },
+      "def": "cmp_3",
+      "health": "solid",
+      "hidden": false,
+      "id": "ins_4",
+      "kind": "instance",
+      "material": "mat_0",
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0
+      ],
+      "tags": [],
+      "user_hidden": false,
+      "watertight": true
+     },
+     {
+      "bbox": {
+       "max": [
+        0.8,
+        0.25,
+        0.32
+       ],
+       "min": [
+        0,
+        0,
+        0.3
+       ]
+      },
+      "def": "cmp_3",
+      "health": "solid",
+      "hidden": false,
+      "id": "ins_5",
+      "kind": "instance",
+      "material": "mat_0",
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.3
+      ],
+      "tags": [],
+      "user_hidden": false,
+      "watertight": true
+     },
+     {
+      "bbox": {
+       "max": [
+        0.8,
+        0.25,
+        0.62
+       ],
+       "min": [
+        0,
+        0,
+        0.6
+       ]
+      },
+      "def": "cmp_3",
+      "health": "solid",
+      "hidden": false,
+      "id": "ins_6",
+      "kind": "instance",
+      "material": "mat_0",
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.6
+      ],
+      "tags": [],
+      "user_hidden": false,
+      "watertight": true
+     },
+     {
+      "bbox": {
+       "max": [
+        0.8,
+        0.25,
+        0.9199999999999999
+       ],
+       "min": [
+        0,
+        0,
+        0.8999999999999999
+       ]
+      },
+      "def": "cmp_3",
+      "health": "solid",
+      "hidden": false,
+      "id": "ins_7",
+      "kind": "instance",
+      "material": "mat_0",
+      "mirrored": false,
+      "name": "Shelf",
+      "parent": null,
+      "pose": [
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0.8999999999999999
+      ],
+      "tags": [],
+      "user_hidden": false,
+      "watertight": true
+     }
+    ]
+   }
+  },
+  {
+   "method": "hew.attr.get",
+   "params": {
+    "target": "mat_0",
+    "ns": "org.opencutlist"
+   },
+   "result": {
+    "org.opencutlist": {
+     "type": "solid_wood"
+    }
+   }
+  },
+  {
+   "method": "hew.query.part_frame",
+   "params": {
+    "path": [
+     "ins_4"
+    ],
+    "scope": "own"
+   },
+   "result": {
+    "epoch": 11,
+    "extents": [
+     0.8,
+     0.25,
+     0.02
+    ],
+    "generation": 9,
+    "mirrored": false,
+    "origin": [
+     0,
+     0,
+     0
+    ],
+    "source": "definition",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "z": [
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "method": "hew.query.part_frame",
+   "params": {
+    "path": [
+     "ins_5"
+    ],
+    "scope": "own"
+   },
+   "result": {
+    "epoch": 11,
+    "extents": [
+     0.8,
+     0.25,
+     0.02
+    ],
+    "generation": 9,
+    "mirrored": false,
+    "origin": [
+     0,
+     0,
+     0.3
+    ],
+    "source": "definition",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "z": [
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "method": "hew.query.part_frame",
+   "params": {
+    "path": [
+     "ins_6"
+    ],
+    "scope": "own"
+   },
+   "result": {
+    "epoch": 11,
+    "extents": [
+     0.8,
+     0.25,
+     0.02
+    ],
+    "generation": 9,
+    "mirrored": false,
+    "origin": [
+     0,
+     0,
+     0.6
+    ],
+    "source": "definition",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "z": [
+     0,
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "method": "hew.query.part_frame",
+   "params": {
+    "path": [
+     "ins_7"
+    ],
+    "scope": "own"
+   },
+   "result": {
+    "epoch": 11,
+    "extents": [
+     0.8,
+     0.25,
+     0.02
+    ],
+    "generation": 9,
+    "mirrored": false,
+    "origin": [
+     0,
+     0,
+     0.8999999999999999
+    ],
+    "source": "definition",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "z": [
+     0,
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

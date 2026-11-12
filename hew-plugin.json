@@ -1,0 +1,106 @@
+{
+  "manifest": 1,
+  "id": "org.opencutlist",
+  "name": "OpenCutList",
+  "version": "0.0.0",
+  "description": "Cut lists, cutting diagrams, labels, and estimates.",
+  "author": {
+    "name": "L'Air du Bois",
+    "url": "https://www.lairdubois.fr"
+  },
+  "license": "GPL-3.0",
+  "source": "https://github.com/lairdubois/lairdubois-opencutlist-hew-extension",
+  "hew": ">=1.5.0",
+  "api": 1,
+  "main": "dist/background.js",
+  "permissions": [
+    "model.read",
+    "attributes.write"
+  ],
+  "activation": [
+    "on_command",
+    "on_surface_open",
+    "on_document_has_namespace"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "id": "count_parts",
+        "class": "read_only",
+        "summary": "The model's parts, counted by OpenCutList's rule: one row per definition, material, size and mirroring, with hardware, assemblies and open objects listed apart.",
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "loose": {
+              "type": "boolean",
+              "description": "list objects with no definition as parts placed once (default true)"
+            },
+            "includeHidden": {
+              "type": "boolean"
+            },
+            "pieces": {
+              "type": "boolean",
+              "description": "also list the solids of glued-up blanks"
+            },
+            "autoOrient": {
+              "type": "boolean",
+              "description": "longest extent first (default true)"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parts": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "hardware": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "open": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "machining": {
+              "type": "integer"
+            },
+            "assemblies": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "lookAlike": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": [
+            "parts",
+            "hardware",
+            "open",
+            "machining",
+            "assemblies",
+            "lookAlike"
+          ]
+        }
+      }
+    ],
+    "presave": false
+  }
+}
