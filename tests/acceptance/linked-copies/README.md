@@ -1,10 +1,6 @@
 # Acceptance test: linked copies (Hew milestone 2)
 
-> **Status: not yet run against linked copies. It must be run on the M2 build.**
->
-> - On M1 the linked-copy cases (L1–L14) fail by design: M1 has no linked copies. Only the baseline (B1–B4) is a real result.
-> - The "13 pass" below comes from **simulated** links (`OCL_SIMULATE_LINKS=1`, copies made from explicit components). It checks the cases' own logic, not Hew's behaviour.
-> - Five M2 calls are guesses (`adapter.ts`) and have never run: those cases skip until their real shapes are known.
+> **Status: run on the M2 pre-release (`v1.5.0-pre.plugin-m2`): 18 of 18 pass, on real linked copies.** No simulation is involved in that result. Kurt (granroth) ran it first on Linux; it was re-run on Linux arm64, headless, on 12 November 2026. See "Results on M2" below.
 
 What OpenCutList needs from Hew's linked copies, as executable cases. Agreed on hew3d/hew#60 and in [lairdubois-opencutlist-hew-extension#1](https://github.com/lairdubois/lairdubois-opencutlist-hew-extension/pull/1) (concept mapping 0.4, §2 and §14): copying an Object or a group links it by default, with component semantics, per-placement data, and an explicit Unlink.
 
@@ -59,19 +55,27 @@ Each case runs in its own headless `hew-cli mcp` session, on a fresh document it
 | L13 | Two linked sides in a cabinet, cabinet copied | 4 placements of one solid (links nest) |
 | L14 | Save and reopen (`.hew`) | still 3 placements of one solid |
 
-## TBD calls (`adapter.ts`)
+## The five M2 calls (`adapter.ts`)
 
-These are the M2 calls whose shape we guessed. Each is one function:
+These were guesses before M2. They now carry the shapes M2 takes (corrections by granroth):
 
-| Function | Guessed shape | Meaning |
+| Function | M2 shape | Meaning |
 |---|---|---|
-| `independentCopy` | `hew.entity.move {copy: {count, independent: true}}` | the "Paste New" copy |
-| `unlink` | `hew.component.make_unique {path}` | Unlink by occurrence path, returning the id remap |
-| `pushPullThrough` | `hew.solid.push_pull {face: {path, at}}` | edit a face of one placement |
-| `subtractThrough` | `hew.solid.subtract {a: {path}, b}` | a boolean on one placement |
-| `paintFaceThrough` | `hew.material.paint {face: {path, at}}` | paint a face of one placement |
+| `independentCopy` | `hew.entity.move {copy: {count, linked: false}}` | the "Paste New" copy |
+| `unlink` | `hew.component.make_unique {path, cascade: true}`, where `path` is the **instance** path (no trailing object id) | Unlink by occurrence path, returning the id remap |
+| `pushPullThrough` | `hew.solid.push_pull {face: {path, at}}`, with `at` in the **leaf's own frame** (the definition's coordinates, as `hew.query.faces {path}` and raycast report them) | edit a face of one placement |
+| `subtractThrough` | `hew.solid.subtract {a: {path}, b}` (the guess was right) | a boolean on one placement |
+| `paintFaceThrough` | `hew.material.paint {face: {path, at}}`, `at` in the leaf's frame | paint a face of one placement |
 
-## Results on M1 (`v1.4.0-pre.plugin-m1`, macOS, 6 November 2026)
+The cases name world points; `toLeafFrame` maps them through the inverse of the placement's `world_pose`.
+
+## Results on M2 (`v1.5.0-pre.plugin-m2`, Linux arm64, 12 November 2026)
+
+- **18 of 18 pass**: B1–B4 and L1–L14, no skips.
+- Before the three corrections in `adapter.ts`: 14 pass, L10 skips (`independent`), L7 and L12 answer `locator_missed` (world points), L9 answers `unknown_occurrence` (object id at the end of the path).
+- The M1 finding is fixed: the copied solid keeps its name through Unlink and Make Unique (L9 checks it).
+
+## Results on M1 (`v1.4.0-pre.plugin-m1`, macOS, 6 November 2026), for the record
 
 - **Real gestures**: B1–B4 pass; L1–L9 and L11–L14 fail with "copies not linked" (expected before M2); L10 skips.
 - **Simulated links** (`OCL_SIMULATE_LINKS=1`): 13 pass, 5 skip (the five TBD calls), 0 fail. This only checks the cases' own logic. **It is not a result on Hew's linked copies**: what remains for M2 is the real gesture plus the TBD calls, and the whole suite has to be run again on the M2 build.
@@ -80,7 +84,7 @@ These are the M2 calls whose shape we guessed. Each is one function:
 ## Files
 
 - `hew.ts`: a small client for `hew-cli mcp` (headless, JSON-RPC over stdio).
-- `adapter.ts`: the copy gestures and the TBD calls.
+- `adapter.ts`: the copy gestures and the five M2 calls.
 - `cases.ts`: the cases.
 - `run.ts`: the runner.
 - `probe.ts`: prints what `occurrences` reports for a few shapes, to check the invariant on a new build.

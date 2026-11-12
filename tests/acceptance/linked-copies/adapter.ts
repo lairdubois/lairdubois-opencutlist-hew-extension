@@ -73,16 +73,42 @@ async function tbd<T>(call: () => Promise<T>): Promise<T> {
   }
 }
 
+
+/**
+ * M2 contract: a face locator addressed by `path` takes `at` in the leaf's own
+ * frame (the definition's coordinates, as `hew.query.faces { path }` and
+ * raycast report them), not in world coordinates. The cases name world points,
+ * so map them through the inverse of the placement's `world_pose` (3x4, row
+ * major; rigid or mirrored, so the inverse is the transpose of the rotation).
+ */
+async function toLeafFrame(hew: Hew, path: string[], at: number[]): Promise<number[]> {
+  const rows = await hew.occurrences();
+  const row = rows.find((r) => r.id === path[path.length - 1] && JSON.stringify(r.path) === JSON.stringify(path.slice(0, -1)));
+  if (!row) return at;
+  const m = row.world_pose; // [r00 r01 r02 tx, r10 r11 r12 ty, r20 r21 r22 tz]
+  const d = [at[0] - m[3], at[1] - m[7], at[2] - m[11]];
+  // scale may be non-unit (mirrors are -1): divide each column by its squared length
+  const col = (j: number) => [m[j], m[4 + j], m[8 + j]];
+  return [0, 1, 2].map((j) => {
+    const c = col(j);
+    const len2 = c[0] * c[0] + c[1] * c[1] + c[2] * c[2];
+    return (c[0] * d[0] + c[1] * d[1] + c[2] * d[2]) / len2;
+  });
+}
+
+/** M2 contract: `make_unique { path }` takes the instance path; a trailing object id (the solid under the placement) is dropped. */
+const instancePath = (path: string[]) => (path.length && path[path.length - 1].startsWith("obj_") ? path.slice(0, -1) : path);
+
 /** TBD (M2): the independent copy ("Paste New"). Assumed: a flag on the copy form. */
 export const independentCopy = (hew: Hew, ids: string[], translation: number[]) =>
-  tbd(() => hew.one("hew.entity.move", { ids, translation, copy: { count: 1, independent: true } }));
+  tbd(() => hew.one("hew.entity.move", { ids, translation, copy: { count: 1, linked: false } }));
 
 /** TBD (M2): Unlink one placement by path; returns the id remap. M1 takes `instance` only. */
-export const unlink = (hew: Hew, path: string[]) => tbd(() => hew.one("hew.component.make_unique", { path }));
+export const unlink = (hew: Hew, path: string[]) => tbd(() => hew.one("hew.component.make_unique", { path: instancePath(path), cascade: true }));
 
 /** TBD (M2): push/pull a face of one placement, addressed by occurrence path + world point. */
 export const pushPullThrough = (hew: Hew, path: string[], at: number[], distance: number) =>
-  tbd(() => hew.one("hew.solid.push_pull", { face: { path, at }, distance }));
+  tbd(async () => hew.one("hew.solid.push_pull", { face: { path, at: await toLeafFrame(hew, path, at) }, distance }));
 
 /** TBD (M2): subtract a tool solid from one placement, addressed by path (M1 takes ids `a`, `b`). */
 export const subtractThrough = (hew: Hew, path: string[], tool: string) =>
@@ -90,4 +116,4 @@ export const subtractThrough = (hew: Hew, path: string[], tool: string) =>
 
 /** TBD (M2): paint one face of one placement, addressed by path + world point. */
 export const paintFaceThrough = (hew: Hew, path: string[], at: number[], material: string) =>
-  tbd(() => hew.one("hew.material.paint", { face: { path, at }, material }));
+  tbd(async () => hew.one("hew.material.paint", { face: { path, at: await toLeafFrame(hew, path, at) }, material }));
