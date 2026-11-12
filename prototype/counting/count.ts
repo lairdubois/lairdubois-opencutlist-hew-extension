@@ -27,6 +27,10 @@ const TYPE_ORDER: MaterialType[] = [
 const VIRTUAL = new Set<MaterialType>(["edge", "veneer"]);
 export const NS = "org.opencutlist";
 
+/** OCL_M2_READS=1 uses the M2 reads (`members`, `solid`, `scope: "own"`) instead of the M1 simulations. */
+const M2 = process.env.OCL_M2_READS === "1";
+export { M2 };
+
 export type Options = {
   loose?: boolean; // list loose objects as parts placed once (default true)
   includeHidden?: boolean;
@@ -96,17 +100,63 @@ export async function countParts(hew: Hew, opts: Options = {}): Promise<Result> 
   const typeOf = (id: string | null): MaterialType => (id ? matType.get(id) ?? "unknown" : "unknown");
 
   // simulated `solid`: health lists the objects that aren't closed solids
-  const health = await hew.query("hew.doc.health", {});
   const openKind = new Map<string, string>();
-  for (const h of health.rows ?? []) openKind.set(h.object, h.verdict?.kind ?? "open");
+  if (M2) {
+    // real read: every object row carries `solid` (closed and manifold) and `family` (a split shape's seam family)
+    for (const r of rows) if (r.kind === "object" && r.solid === false) openKind.set(r.id, r.family != null ? "split" : "open");
+  } else {
+    const health = await hew.query("hew.doc.health", {});
+    for (const h of health.rows ?? []) openKind.set(h.object, h.verdict?.kind ?? "open");
+  }
 
   // simulated `members`: an object's container is the last instance of its path
   const key = (p: string[]) => JSON.stringify(p);
   const ownObjects = new Map<string, Row[]>(); // container locator → objects directly in it (groups transparent)
   const nestedInstances = new Map<string, Row[]>();
-  for (const r of rows) {
-    if (r.kind === "object") push(ownObjects, key(r.path), r);
-    if (r.kind === "instance") push(nestedInstances, key(r.path), r);
+  if (M2) {
+    // real read: `members` lists a row's direct members as public ids; groups are transparent, so their
+    // objects and instances count toward the enclosing container.
+    // `path` holds instances only: a member of an instance has path [...path, instance]; a member of a group
+    // has the group's own path (and `parent` = the group). So the members' path is `here` for an instance and
+    // `c.path` for a group.
+    const byLoc = new Map<string, Row>();
+    for (const r of rows) byLoc.set(key([...r.path, r.id]), r);
+    type Members = { objects: string[]; groups: string[]; instances: string[] };
+    const ownOf = (c: Row): { objects: Row[]; instances: Row[] } => {
+      const m = (c as any).members as Members | undefined;
+      if (!m) throw new Error(`row ${c.id} has no members (M2 read missing)`);
+      const base = c.kind === "group" ? c.path : [...c.path, c.id];
+      const out = { objects: [] as Row[], instances: [] as Row[] };
+      for (const id of m.objects) {
+        const r = byLoc.get(key([...base, id]));
+        if (r) out.objects.push(r);
+      }
+      for (const id of m.instances) {
+        const r = byLoc.get(key([...base, id]));
+        if (r) out.instances.push(r);
+      }
+      for (const id of m.groups) {
+        const g = byLoc.get(key([...base, id]));
+        if (g) {
+          const sub = ownOf(g);
+          out.objects.push(...sub.objects);
+          out.instances.push(...sub.instances);
+        }
+      }
+      return out;
+    };
+    for (const r of rows) {
+      if (r.kind === "instance") {
+        const own = ownOf(r);
+        ownObjects.set(key([...r.path, r.id]), own.objects);
+        nestedInstances.set(key([...r.path, r.id]), own.instances);
+      }
+    }
+  } else {
+    for (const r of rows) {
+      if (r.kind === "object") push(ownObjects, key(r.path), r);
+      if (r.kind === "instance") push(nestedInstances, key(r.path), r);
+    }
   }
 
   // hardware placements are single items: nothing under them is listed
@@ -211,7 +261,18 @@ export async function countParts(hew: Hew, opts: Options = {}): Promise<Result> 
       }
       continue;
     }
-    let size = await ownSize(solids, c.world_pose);
+    let size: [number, number, number];
+    if (M2) {
+      // real read: the part frame over the container's own solids only. `scope: "own"` still measures every
+      // own Object, open surfaces included, so leave out machining bodies and the objects that aren't solids.
+      const excluded = (ownObjects.get(loc) ?? [])
+        .filter((o) => typeOf(o.material) === "machining" || openKind.has(o.id))
+        .map((o) => o.id);
+      const pf = await hew.query("hew.query.part_frame", { path: [...c.path, c.id], scope: "own", ...(excluded.length ? { exclude: excluded } : {}) });
+      size = pf.extents.map((v: number) => v * 1000) as [number, number, number];
+    } else {
+      size = await ownSize(solids, c.world_pose);
+    }
     if (autoOrient) size = [...size].sort((a, b) => b - a) as [number, number, number];
     size = size.map(r1) as [number, number, number];
     const material = await partMaterial(c, solids);

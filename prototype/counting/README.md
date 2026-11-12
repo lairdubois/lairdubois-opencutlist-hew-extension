@@ -1,10 +1,6 @@
 # Prototype: counting parts over `occurrences`
 
-> **Status: run on milestone 1 with M2 reads simulated. Everything here must be re-tested on the M2 build.**
->
-> - What M1 really verified: `occurrences`, `part_frame`, `faces` and `doc.health` as they are on M1, and the counting logic on top of them.
-> - What is **simulated**, not tested on Hew: the three M2 reads (`members`, `solid`, `scope: "own"`, see below), and linked copies, which the cases build as explicit components because M1 has no linked copies.
-> - So the synthetic results and the real-model results below show the rule works **on the simulated reads**. They don't show that M2's real reads give the same rows. When M2 is out, the simulations get replaced by the real calls and every case is run again.
+> **Status: run on the M2 pre-release (`v1.5.0-pre.plugin-m2`) with the real M2 reads (`OCL_M2_READS=1`), 12 November 2026.** The synthetic cases pass, and on five real models the cut lists are identical to a run with the simulated reads. See "Results on M2" below. Linked copies in the synthetic cases are still built as explicit components; the acceptance test (#2) covers real linked copies.
 
 The counting logic of OpenCutList for Hew, as settled in the concept mapping 0.4 ([#1](https://github.com/lairdubois/lairdubois-opencutlist-hew-extension/pull/1), §1 and §2), written in TypeScript over Hew's bus and run on milestone 1. It's the second thing I offered @granroth on hew3d/hew#60, next to the acceptance test for linked copies (#2).
 
@@ -25,26 +21,27 @@ The counting logic of OpenCutList for Hew, as settled in the concept mapping 0.4
 
 Material types are read from our attribute on the material (`org.opencutlist` / `type`), or from an optional name → type map.
 
-## What it simulates on M1
+## M2 reads and their M1 simulations
 
-Three M2 reads aren't on M1 yet. The prototype derives them from what M1 has, in one place each, so they can be swapped for the real calls:
+`OCL_M2_READS=1` uses the real M2 reads (switch and code by granroth). Without it, the prototype derives them from what M1 has, so both paths stay runnable side by side:
 
-| M2 read | Simulated on M1 with |
-|---|---|
-| `members` on each row | `path` and `parent`: an object's container is the last instance on its path |
-| `solid` on object rows | `hew.doc.health`, which lists the objects that aren't closed |
-| `scope: "own"` on `part_frame` | the own solids' faces (`hew.query.faces {path}` returns them in the definition's local coordinates), measured along the local axes and scaled by the placement |
+| Read | M2 (`OCL_M2_READS=1`) | Simulated on M1 with |
+|---|---|---|
+| `members` | `members` on instance and group rows. Groups are transparent: their objects and instances count toward the enclosing container. **`path` holds instances only**: a group's members have the group's own `path`, and `parent` names the group. | `path` and `parent`: an object's container is the last instance on its path |
+| `solid` | `solid` (and `family` for a split shape) on object rows | `hew.doc.health`, which lists the objects that aren't closed |
+| own size | `hew.query.part_frame {path, scope: "own", exclude}`. `scope: "own"` measures every own Object, open surfaces included, so `exclude` lists the machining bodies **and the objects that aren't solids**. | the own solids' faces (`hew.query.faces {path}` returns them in the definition's local coordinates), measured along the local axes and scaled by the placement |
 
 ## Running it
 
-Needs Node ≥ 23 and a milestone 1 (or later) `hew-cli`.
+Needs Node ≥ 23 and a milestone 1 (or later) `hew-cli`; the M2 reads need the M2 build.
 
 ```bash
 HEW_CLI=/path/to/hew-cli node synthetic.ts             # the synthetic cases below
 HEW_CLI=… node corpus.ts [--out dir] model.skp …       # real models, opened read-only in a headless session
+OCL_M2_READS=1 HEW_CLI=… node synthetic.ts              # the same, on the real M2 reads
 ```
 
-## Synthetic cases (pass on M1, with simulated reads; to re-run on M2)
+## Synthetic cases (pass on M1 with simulated reads, and on M2 with the real reads)
 
 | Id | Model | Expected and found |
 |---|---|---|
@@ -53,7 +50,16 @@ HEW_CLI=… node corpus.ts [--out dir] model.skp …       # real models, opened
 | S3 | Left and right sides; a shelf marked `symmetrical`, one copy mirrored | Side as two rows (plain and mirrored); Shelf ×2 as one row |
 | S4 | Hinge of three bodies painted as hardware ×2; door with a machining body inside; cabinet of components only; a shelf on a hidden tag; a loose board | Hinge ×2 as hardware; door 700 × 450 × 18 (tool left out); cabinet as an assembly; hidden shelf left out; loose board listed once |
 
-## Real models (M1, simulated reads; to re-run on M2)
+## Results on M2 (`v1.5.0-pre.plugin-m2`, Linux arm64, headless, 12 November 2026)
+
+- **Synthetic cases**: S1–S4 pass with the real reads, with the same tables as the simulated ones. S4 is why `exclude` exists: with `scope: "own"` alone the door measured its machining body too.
+- **Real models**: five `.skp` files (a kitchen trolley, a microwave cabinet, a TV cabinet, an outfeed table, a router bench), each run with the simulated reads and with the real ones. The cut lists, sizes and nested counts are **identical**. The only difference is the label on the open objects: `open` or `split` from the M2 read, where the simulation gave the health verdict's kind. Each model takes 0.0 to 2.0 s.
+- **Two traps found on the real models** (fixed in `count.ts`, both invisible in the synthetic cases):
+  1. members of a group carry the group's `path`, not `[...path, group]`; looking them up the wrong way drops everything inside groups (a three-body appliance and a castor wheel's pieces disappeared, and nested parts in groups went uncounted);
+  2. `scope: "own"` measures open surfaces too: a drawer with open surface objects next to its solids came out 425 × 354 × 57 instead of 410 × 85.3 × 54.
+- **`hew.query.signature`** on the TV cabinet: `Component10` and `Component10(Mirror)` give the same hash, and `shape` = `mirror`. That's correct: the strip (715 × 50 × 18, a groove along its whole length) is symmetric end to end, so the "Mirror" definition is the same part turned round, and the look-alike suggestion is right to pair them. On a chiral board (a blind pocket at one corner), a mirrored copy swaps `shape` and `mirror`, both as an independent copy and as a flipped linked copy.
+
+## Real models (M1, simulated reads), for the record
 
 Four of my own `.skp` files, opened in Hew M1. Each took between 0.0 and 0.5 s (the Python port's export-and-explode walk takes up to 8 s on the larger models).
 
